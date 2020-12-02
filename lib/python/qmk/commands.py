@@ -28,8 +28,7 @@ def _find_make():
 
     return make_cmd
 
-
-def create_make_command(keyboard, keymap, target=None, parallel=1, **env_vars):
+def create_make_command(keyboard, keymap, target=None, dry_run=False):
     """Create a make compile command
 
     Args:
@@ -43,11 +42,8 @@ def create_make_command(keyboard, keymap, target=None, parallel=1, **env_vars):
         target
             Usually a bootloader.
 
-        parallel
-            The number of make jobs to run in parallel
-
-        **env_vars
-            Environment variables to be passed to make.
+        dry_run
+            make -n -- don't actually build
 
     Returns:
 
@@ -60,43 +56,10 @@ def create_make_command(keyboard, keymap, target=None, parallel=1, **env_vars):
     if target:
         make_args.append(target)
 
-    for key, value in env_vars.items():
-        env.append(f'{key}={value}')
-
-    return [make_cmd, '-j', str(parallel), *env, ':'.join(make_args)]
-
-
-def get_git_version(repo_dir='.', check_dir='.'):
-    """Returns the current git version for a repo, or the current time.
-    """
-    git_describe_cmd = ['git', 'describe', '--abbrev=6', '--dirty', '--always', '--tags']
-
-    if Path(check_dir).exists():
-        git_describe = cli.run(git_describe_cmd, cwd=repo_dir)
-
-        if git_describe.returncode == 0:
-            return git_describe.stdout.strip()
-
-        else:
-            cli.log.warn(f'"{" ".join(git_describe_cmd)}" returned error code {git_describe.returncode}')
-            print(git_describe.stderr)
-            return strftime(time_fmt)
-
-    return strftime(time_fmt)
-
-
-def write_version_h(git_version, build_date, chibios_version, chibios_contrib_version):
-    """Generate and write quantum/version.h
-    """
-    version_h = [
-        f'#define QMK_VERSION "{git_version}"',
-        f'#define QMK_BUILDDATE "{build_date}"',
-        f'#define CHIBIOS_VERSION "{chibios_version}"',
-        f'#define CHIBIOS_CONTRIB_VERSION "{chibios_contrib_version}"',
-    ]
-
-    version_h_file = Path('quantum/version.h')
-    version_h_file.write_text('\n'.join(version_h))
+    if dry_run:
+        return [make_cmd, '-n', ':'.join(make_args)]
+    else:
+        return [make_cmd, ':'.join(make_args)]
 
 
 def compile_configurator_json(user_keymap, bootloader=None, parallel=1, **env_vars):
